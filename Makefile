@@ -12,7 +12,7 @@ web-build:
 
 init:
 	@pip install -U pip; \
-	pip install -e ".[dev]"; \
+	pip install -e ".[dev,ai]"; \
 	pre-commit install; \
 
 pre-commit:
@@ -26,3 +26,9 @@ format:
 
 lint:
 	flake8 --config=../.flake8 --output-file=./coverage/flake8-report --format=default
+
+ai:
+	python -m rl.train --viz --seed 1
+
+eval:
+	python -m rl.train --eval checkpoints/best.pt --render

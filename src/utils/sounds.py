@@ -10,7 +10,7 @@ class Sounds:
     swoosh: pygame.mixer.Sound
     wing: pygame.mixer.Sound
 
-    def __init__(self) -> None:
+    def __init__(self, mute: bool = False) -> None:
         if "win" in sys.platform:
             ext = "wav"
         else:
@@ -21,3 +21,11 @@ class Sounds:
         self.point = pygame.mixer.Sound(f"assets/audio/point.{ext}")
         self.swoosh = pygame.mixer.Sound(f"assets/audio/swoosh.{ext}")
         self.wing = pygame.mixer.Sound(f"assets/audio/wing.{ext}")
+
+        if mute:
+            # Set volume to 0 for all sounds to effectively mute
+            self.die.set_volume(0.0)
+            self.hit.set_volume(0.0)
+            self.point.set_volume(0.0)
+            self.swoosh.set_volume(0.0)
+            self.wing.set_volume(0.0)

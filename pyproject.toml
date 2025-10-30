@@ -16,6 +16,11 @@ dev = [
     "flake8 >= 4.0.1",
     "isort >= 5.10.1"
     ]
+ai = [
+    "torch>=2.2.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+]
 
 [tool.black]
 line-length = 80
