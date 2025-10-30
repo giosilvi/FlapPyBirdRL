@@ -51,6 +51,7 @@ class FlappyEnv:
         gap_amp_px: float = 20.0,
         gap_freq_hz: float = 0.5,
         include_gap_vel: bool = False,
+        center_reward: float = 0.0,
     ) -> None:
         # Headless mode if not rendering
         if not render:
@@ -91,6 +92,7 @@ class FlappyEnv:
         self.episode = 0
         self.total_steps = 0
         self.include_gap_vel = bool(include_gap_vel)
+        self.center_reward = float(center_reward)
 
         self._init_episode_state()
 
@@ -109,6 +111,8 @@ class FlappyEnv:
         self._done = False
         # Track last seen gap centers for velocity estimate keyed by pipe index
         self._last_gap_centers = {}
+        # Track previous |dy1| for approach-to-gap shaping
+        self._prev_abs_dy1: Optional[float] = None
 
     def seed(self, seed: Optional[int]) -> None:
         self._seed = seed
@@ -180,6 +184,14 @@ class FlappyEnv:
             self.config.tick()
 
         obs = self._get_state()
+        # Dense shaping: reward moving toward gap center (next gap only)
+        # Uses change in |dy1| between consecutive steps (potential-based style)
+        if not self._done and self.center_reward > 0.0:
+            # dy1 is at index 3 in the base state layout
+            abs_dy1 = float(abs(obs[3])) if len(obs) >= 4 else 0.0
+            if self._prev_abs_dy1 is not None:
+                reward += self.center_reward * (self._prev_abs_dy1 - abs_dy1)
+            self._prev_abs_dy1 = abs_dy1
         info = {
             "episode": self.episode,
             "score": self.score.score,
@@ -257,10 +269,14 @@ class FlappyEnv:
 
         v_norm = 0.0
         if with_vel:
-            last = self._last_gap_centers.get(idx, gap_center_y)
-            v = gap_center_y - last  # px per step
+            # track by pipe identity to avoid index shifts
+            last = getattr(low, "last_gap_center_y", None)
+            if last is None:
+                v = 0.0
+            else:
+                v = gap_center_y - float(last)
             v_norm = v / float(self.window.viewport_height)
-            self._last_gap_centers[idx] = gap_center_y
+            setattr(low, "last_gap_center_y", gap_center_y)
 
         return float(dx), float(dy), float(v_norm)
 

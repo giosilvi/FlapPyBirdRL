@@ -30,6 +30,7 @@ def train(args: argparse.Namespace) -> None:
         gap_amp_px=args.gap_amp_px,
         gap_freq_hz=args.gap_freq_hz,
         include_gap_vel=args.include_gap_vel,
+        center_reward=args.center_reward,
     )
     state_dim = 6 + (2 if args.include_gap_vel else 0)
     action_dim = 2
@@ -166,8 +167,12 @@ def evaluate(args: argparse.Namespace) -> None:
         gap_amp_px=args.gap_amp_px,
         gap_freq_hz=args.gap_freq_hz,
         include_gap_vel=args.include_gap_vel,
+        center_reward=args.center_reward,
     )
-    cfg = DQNConfig(device=device)
+    # Match network input size to env state (6 base + 2 optional velocities)
+    state_dim = 6 + (2 if args.include_gap_vel else 0)
+    action_dim = 2
+    cfg = DQNConfig(state_dim=state_dim, action_dim=action_dim, device=device)
     agent = DQNAgent(cfg)
     agent.load(args.eval)
 
@@ -197,6 +202,7 @@ def main() -> None:
     parser.add_argument("--gap-amp-px", type=float, default=20.0, help="Amplitude (pixels) of gap oscillation")
     parser.add_argument("--gap-freq-hz", type=float, default=0.5, help="Frequency (Hz) of gap oscillation")
     parser.add_argument("--include-gap-vel", action="store_true", help="Append vertical velocity of next two gaps to the state")
+    parser.add_argument("--center-reward", type=float, default=0.0, help="Shaping: reward for reducing |dy1| toward gap center")
 
     # DQN
     parser.add_argument("--gamma", type=float, default=0.99)
