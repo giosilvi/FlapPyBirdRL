@@ -1,0 +1,6 @@
+fastapi==0.115.2
+uvicorn[standard]==0.30.6
+numpy>=1.24
+pygame==2.4.0
+# Torch CPU-only build will be pulled from the extra index URL set in Dockerfile
+torch==2.4.0
