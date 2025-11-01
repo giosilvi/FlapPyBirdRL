@@ -14,7 +14,7 @@ WORKDIR /app/FlapPyBird
 COPY requirements.deploy.txt /app/FlapPyBird/
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.deploy.txt \
-       --index-url https://download.pytorch.org/whl/cpu
+       --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy project
 COPY . /app/FlapPyBird
