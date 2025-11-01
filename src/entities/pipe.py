@@ -38,11 +38,18 @@ class Pipes(Entity):
         if getattr(self.config, "moving_gaps", False):
             self.frame += 1
             # angular frequency per frame
-            omega = 2 * 3.141592653589793 * getattr(self.config, "gap_freq_hz", 0.5) / max(1, self.config.fps)
+            omega = (
+                2
+                * 3.141592653589793
+                * getattr(self.config, "gap_freq_hz", 0.5)
+                / max(1, self.config.fps)
+            )
             amp = float(getattr(self.config, "gap_amp_px", 20.0))
             # bounds to keep gap within viewport
             min_center = self.pipe_gap / 2 + 5
-            max_center = self.config.window.viewport_height - self.pipe_gap / 2 - 5
+            max_center = (
+                self.config.window.viewport_height - self.pipe_gap / 2 - 5
+            )
 
             for up_pipe, low_pipe in zip(self.upper, self.lower):
                 # Each pair stores its base center and random phase
@@ -56,7 +63,9 @@ class Pipes(Entity):
                     up_pipe.gap_phase = phase
                     low_pipe.gap_phase = phase
 
-                offset = amp * __import__("math").sin(omega * self.frame + phase)
+                offset = amp * __import__("math").sin(
+                    omega * self.frame + phase
+                )
                 center = min(max(base_center + offset, min_center), max_center)
 
                 pipe_height = self.config.images.pipe[0].get_height()

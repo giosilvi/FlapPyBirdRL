@@ -61,7 +61,9 @@ class FlappyEnv:
         pygame.display.set_caption("Flappy Bird (RL)")
 
         self.window = Window(288, 512)
-        self.screen = pygame.display.set_mode((self.window.width, self.window.height))
+        self.screen = pygame.display.set_mode(
+            (self.window.width, self.window.height)
+        )
         self.clock = pygame.time.Clock()
 
         # Seeding
@@ -130,21 +132,15 @@ class FlappyEnv:
         obs = self._get_state()
         return obs
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict]:
-        if self._done:
-            return self._get_state(), 0.0, True, {}
-
-        # Handle minimal event processing (allow quitting cleanly)
+    def _process_events(self) -> None:
+        """Handle pygame events (allow quitting cleanly)."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
 
-        # Action
-        if action == 1:
-            self.player.flap()
-
-        # Physics/game update order mirrors main game loop
+    def _update_physics(self) -> None:
+        """Update all game entities in correct order."""
         self.background.tick()
         self.floor.tick()
         self.pipes.tick()
@@ -152,16 +148,19 @@ class FlappyEnv:
         self.score.tick()
         self.player.tick()
 
-        # Collisions end the episode
+    def _check_collisions(self) -> None:
+        """Check collisions and mark episode as done if collision occurred."""
         if self.player.collided(self.pipes, self.floor):
             self._done = True
 
-        # Check pipes crossed to update score (as in flappy.play)
+    def _update_score(self) -> None:
+        """Check pipes crossed and update score."""
         for pipe in list(self.pipes.upper):
             if self.player.crossed(pipe):
                 self.score.add()
 
-        # Reward shaping
+    def _calculate_reward(self, action: int) -> float:
+        """Calculate reward based on score, actions, and game state."""
         reward = 0.0
         reward += (self.score.score - self._prev_score) * 1.0
         reward += self.step_penalty
@@ -174,30 +173,56 @@ class FlappyEnv:
             # Penalize being out of the visible viewport (above the top)
             if self.player.y < 0 and self.out_of_bounds_cost > 0.0:
                 reward -= self.out_of_bounds_cost
+        return reward
 
-        self._prev_score = self.score.score
-        self.total_steps += 1
-
-        # Render if requested (cap FPS only when rendering)
-        if self.render_enabled:
-            pygame.display.update()
-            self.config.tick()
-
-        obs = self._get_state()
-        # Dense shaping: reward moving toward gap center (next gap only)
-        # Uses change in |dy1| between consecutive steps (potential-based style)
+    def _apply_dense_reward_shaping(
+        self, obs: np.ndarray, reward: float
+    ) -> float:
+        """Apply dense shaping reward for moving toward gap center."""
         if not self._done and self.center_reward > 0.0:
             # dy1 is at index 3 in the base state layout
             abs_dy1 = float(abs(obs[3])) if len(obs) >= 4 else 0.0
             if self._prev_abs_dy1 is not None:
                 reward += self.center_reward * (self._prev_abs_dy1 - abs_dy1)
             self._prev_abs_dy1 = abs_dy1
-        info = {
+        return reward
+
+    def _create_info_dict(self) -> Dict:
+        """Create info dictionary for step return."""
+        return {
             "episode": self.episode,
             "score": self.score.score,
             "epsilon": None,
             "steps": self.total_steps,
         }
+
+    def _render_frame(self) -> None:
+        """Render frame if rendering is enabled."""
+        if self.render_enabled:
+            pygame.display.update()
+            self.config.tick()
+
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict]:
+        if self._done:
+            return self._get_state(), 0.0, True, {}
+
+        self._process_events()
+        if action == 1:
+            self.player.flap()
+
+        self._update_physics()
+        self._check_collisions()
+        self._update_score()
+
+        reward = self._calculate_reward(action)
+        self._prev_score = self.score.score
+        self.total_steps += 1
+
+        self._render_frame()
+        obs = self._get_state()
+        reward = self._apply_dense_reward_shaping(obs, reward)
+        info = self._create_info_dict()
+
         return obs, float(reward), bool(self._done), info
 
     def render(self) -> None:
@@ -227,8 +252,12 @@ class FlappyEnv:
     def _get_state(self) -> np.ndarray:
         # Find the next two pipes ahead of the player
         next_idx, next2_idx = self._next_two_pipe_indices()
-        dx1, dy1, v1 = self._pipe_deltas(next_idx, with_vel=self.include_gap_vel)
-        dx2, dy2, v2 = self._pipe_deltas(next2_idx, with_vel=self.include_gap_vel)
+        dx1, dy1, v1 = self._pipe_deltas(
+            next_idx, with_vel=self.include_gap_vel
+        )
+        dx2, dy2, v2 = self._pipe_deltas(
+            next2_idx, with_vel=self.include_gap_vel
+        )
 
         vy_cap = max(abs(self.player.max_vel_y), abs(self.player.min_vel_y))
         vy = clamp(self.player.vel_y, -vy_cap, vy_cap) / float(vy_cap)
@@ -255,7 +284,9 @@ class FlappyEnv:
         i2 = min(i1 + 1, len(self.pipes.upper) - 1)
         return i1, i2
 
-    def _pipe_deltas(self, idx: int, with_vel: bool = False) -> Tuple[float, float, float]:
+    def _pipe_deltas(
+        self, idx: int, with_vel: bool = False
+    ) -> Tuple[float, float, float]:
         idx = max(0, min(idx, len(self.pipes.upper) - 1))
         up = self.pipes.upper[idx]
         low = self.pipes.lower[idx]
@@ -279,5 +310,3 @@ class FlappyEnv:
             setattr(low, "last_gap_center_y", gap_center_y)
 
         return float(dx), float(dy), float(v_norm)
-
-
