@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    SDL_AUDIODRIVER=dummy
 
 # System deps that help pygame run headless
 RUN apt-get update && apt-get install -y --no-install-recommends \

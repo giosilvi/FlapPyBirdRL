@@ -11,6 +11,24 @@ class Sounds:
     wing: pygame.mixer.Sound
 
     def __init__(self, mute: bool = False) -> None:
+        # In headless/server environments without an audio device, initializing
+        # the mixer will fail. When muted, we avoid loading sounds entirely and
+        # use lightweight no-op placeholders.
+        if mute:
+            class _Silent:
+                def set_volume(self, *args, **kwargs):
+                    return None
+
+                def play(self, *args, **kwargs):
+                    return None
+
+            self.die = _Silent()
+            self.hit = _Silent()
+            self.point = _Silent()
+            self.swoosh = _Silent()
+            self.wing = _Silent()
+            return
+
         if "win" in sys.platform:
             ext = "wav"
         else:
@@ -21,11 +39,3 @@ class Sounds:
         self.point = pygame.mixer.Sound(f"assets/audio/point.{ext}")
         self.swoosh = pygame.mixer.Sound(f"assets/audio/swoosh.{ext}")
         self.wing = pygame.mixer.Sound(f"assets/audio/wing.{ext}")
-
-        if mute:
-            # Set volume to 0 for all sounds to effectively mute
-            self.die.set_volume(0.0)
-            self.hit.set_volume(0.0)
-            self.point.set_volume(0.0)
-            self.swoosh.set_volume(0.0)
-            self.wing.set_volume(0.0)
