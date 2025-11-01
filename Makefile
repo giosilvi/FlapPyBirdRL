@@ -31,4 +31,7 @@ ai:
 	python -m rl.train --viz --seed 1
 
 eval:
-	python -m rl.train --eval checkpoints/best.pt --render
+	python -m rl.train --eval checkpoints/best.pt --render --include-gap-vel
+
+eval-web:
+	uvicorn server.ai_server:app --reload --port 8765
