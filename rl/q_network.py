@@ -5,7 +5,7 @@ from torch import nn
 
 
 class QNetwork(nn.Module):
-    def __init__(self, state_dim: int = 6, action_dim: int = 2) -> None:
+    def __init__(self, state_dim: int = 8, action_dim: int = 2) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(state_dim, 128),

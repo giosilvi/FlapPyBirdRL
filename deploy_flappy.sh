@@ -62,6 +62,8 @@ services:
     build: .
     container_name: flappy-ai
     restart: unless-stopped
+    environment:
+      - ENABLE_AUTO_TRAINING=true
     expose:
       - "8765"
   caddy:
@@ -95,7 +97,16 @@ if [ ! -f checkpoints/best.pt ]; then
   echo "WARNING: checkpoints/best.pt not found in repo; the AI loop will not start." >&2
 fi
 
-# 4) Build + up
+# 4) Update docker-compose.yml to ensure ENABLE_AUTO_TRAINING is set
+if grep -q "ENABLE_AUTO_TRAINING" docker-compose.yml; then
+  # Already has it, just ensure it's true
+  sed -i 's/ENABLE_AUTO_TRAINING=.*/ENABLE_AUTO_TRAINING=true/' docker-compose.yml || true
+else
+  # Add it if missing (insert after container_name line)
+  sed -i '/container_name: flappy-ai/a\    environment:\n      - ENABLE_AUTO_TRAINING=true' docker-compose.yml || true
+fi
+
+# 5) Build + up
 docker compose build app --no-cache
 docker compose up -d
 

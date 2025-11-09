@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Flappy Bird AI - Live View</title>
+    <title>Flappy Bird AI</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>🐦 Flappy Bird AI - Live View</h1>
+    <h1>Flappy Bird AI</h1>
     <div id="container">
         <canvas id="gameCanvas" width="1728" height="1024"></canvas>
     </div>
@@ -26,8 +26,23 @@
             <div class="label">Sound</div>
             <div id="soundStatus">🔊 On</div>
         </div>
+        <div class="info-item clickable" id="birdCheckpointItem">
+            <div class="label">Checkpoint</div>
+            <div class="checkpoint-dropdown">
+                <div id="checkpoint">-</div>
+                <div class="checkpoint-dropdown-content" id="birdCheckpointDropdown"></div>
+            </div>
+        </div>
     </div>
-    <button id="joinBtn">Join!</button>
+    <div id="controls">
+        <button id="joinBtn">Join!</button>
+        <div id="autoTrainingIndicator" style="display: none; color: #ff6b6b; font-size: 14px; font-weight: bold; margin-left: 10px; align-self: center;">
+            🤖 Auto-training...
+        </div>
+        <div id="autoTrainingCounter" style="color: #4ecca3; font-size: 14px; font-weight: bold; margin-left: 10px; align-self: center;">
+            Auto-training rounds: <span id="autoTrainingRounds">0</span>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -38,6 +53,11 @@
         const muteBtn = document.getElementById('muteBtn');
         const soundStatus = document.getElementById('soundStatus');
         const joinBtn = document.getElementById('joinBtn');
+        const checkpointEl = document.getElementById('checkpoint');
+        const birdCheckpointItem = document.getElementById('birdCheckpointItem');
+        const birdCheckpointDropdown = document.getElementById('birdCheckpointDropdown');
+        const autoTrainingIndicator = document.getElementById('autoTrainingIndicator');
+        const autoTrainingRounds = document.getElementById('autoTrainingRounds');
 
         // ephemeral per-tab user id assigned by server on join
         let userId = null;
@@ -158,16 +178,8 @@
                 ctx.drawImage(images.background, x, 0, bgWidth, bgHeight);
             }
 
-            // Draw floor
+            // Draw pipes FIRST (so they appear behind the floor/terrain)
             const floorY = state.viewport_height * SCALE;
-            const floorWidth = images.floor.width * SCALE;
-            const floorHeight = images.floor.height * SCALE;
-            const floorX = (state.floor_x * SCALE) % floorWidth;
-            for (let x = -floorWidth + floorX; x < canvas.width; x += floorWidth) {
-                ctx.drawImage(images.floor, x, floorY, floorWidth, floorHeight);
-            }
-
-            // Draw pipes
             for (const pipe of state.pipes) {
                 const x = pipe.x * SCALE;
                 const pipeWidth = images.pipeGreen.width * SCALE;
@@ -225,6 +237,14 @@
                     }
                     ctx.restore();
                 }
+            }
+
+            // Draw floor AFTER pipes (so floor appears on top of pipes)
+            const floorWidth = images.floor.width * SCALE;
+            const floorHeight = images.floor.height * SCALE;
+            const floorX = (state.floor_x * SCALE) % floorWidth;
+            for (let x = -floorWidth + floorX; x < canvas.width; x += floorWidth) {
+                ctx.drawImage(images.floor, x, floorY, floorWidth, floorHeight);
             }
 
             // Draw bird with animation
@@ -286,6 +306,16 @@
                     if (data.state) {
                         scoreEl.textContent = data.state.score;
                     }
+                    // Update checkpoint display
+                    if (data.checkpoint) {
+                        checkpointEl.textContent = data.checkpoint;
+                    } else {
+                        checkpointEl.textContent = '-';
+                    }
+                    // Update auto-training rounds counter (from init message)
+                    if (data.type === 'init' && data.auto_training_rounds !== undefined) {
+                        autoTrainingRounds.textContent = data.auto_training_rounds;
+                    }
 
                     // Play sound effects based on events
                     if (data.events) {
@@ -311,6 +341,28 @@
                         if (data.events.die) {
                             setTimeout(() => playSound('die'), 100);
                         }
+                    }
+                } else if (data.type === 'auto_training') {
+                    if (data.status === 'started') {
+                        autoTrainingIndicator.style.display = 'block';
+                        statusEl.textContent = `Auto-training started (5 rounds)`;
+                        statusEl.className = 'status';
+                    } else if (data.status === 'completed') {
+                        autoTrainingIndicator.style.display = 'none';
+                        // Update rounds counter
+                        if (data.rounds_completed !== undefined) {
+                            autoTrainingRounds.textContent = data.rounds_completed;
+                        }
+                        statusEl.textContent = `Auto-training completed (5 rounds) - Total: ${data.rounds_completed || 0} rounds`;
+                        statusEl.className = 'status success';
+                        setTimeout(() => {
+                            statusEl.textContent = 'Connected';
+                            statusEl.className = 'status';
+                        }, 3000);
+                    } else if (data.status === 'error') {
+                        autoTrainingIndicator.style.display = 'none';
+                        statusEl.textContent = 'Auto-training error: ' + data.error;
+                        statusEl.className = 'status error';
                     }
                 } else if (data.type === 'join_ok') {
                     userId = data.userId;
@@ -338,8 +390,83 @@
             };
         }
 
+        // Load checkpoints on page load
+        async function loadCheckpoints() {
+            try {
+                // Load bird checkpoints
+                const birdResponse = await fetch('/api/checkpoints/bird');
+                const birdData = await birdResponse.json();
+                updateBirdCheckpointDropdown(birdData.checkpoints, birdData.current);
+            } catch (e) {
+                console.error('Error loading checkpoints:', e);
+            }
+        }
+        
+        function updateBirdCheckpointDropdown(checkpoints, current) {
+            birdCheckpointDropdown.innerHTML = '';
+            if (checkpoints.length === 0) {
+                birdCheckpointDropdown.innerHTML = '<div class="checkpoint-item">No checkpoints found</div>';
+                return;
+            }
+            
+            checkpoints.forEach(ckpt => {
+                const item = document.createElement('div');
+                item.className = 'checkpoint-item';
+                if (ckpt.name === current) {
+                    item.className += ' current';
+                }
+                item.textContent = ckpt.name;
+                item.onclick = () => loadBirdCheckpoint(ckpt.path, ckpt.name);
+                birdCheckpointDropdown.appendChild(item);
+            });
+        }
+        
+        async function loadBirdCheckpoint(path, name) {
+            try {
+                const response = await fetch('/api/checkpoints/bird/load', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({path: path})
+                });
+                const data = await response.json();
+                if (data.success) {
+                    checkpointEl.textContent = data.checkpoint;
+                    // Reload checkpoints to update current indicator
+                    loadCheckpoints();
+                    // Close dropdown
+                    birdCheckpointDropdown.classList.remove('show');
+                }
+            } catch (e) {
+                console.error('Error loading checkpoint:', e);
+                alert('Failed to load checkpoint: ' + e.message);
+            }
+        }
+
+        // Toggle dropdowns
+        birdCheckpointItem.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (birdCheckpointDropdown.classList.contains('show')) {
+                birdCheckpointDropdown.classList.remove('show');
+            } else {
+                // Load fresh checkpoint list
+                await loadCheckpoints();
+                birdCheckpointDropdown.classList.add('show');
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!birdCheckpointItem.contains(e.target)) {
+                birdCheckpointDropdown.classList.remove('show');
+            }
+        });
+
+        // Auto-training indicator (updated via WebSocket messages)
+        // No polling needed - indicator is controlled by WebSocket messages
+
         connect();
         animate();
+        loadCheckpoints();
     </script>
 </body>
 </html>

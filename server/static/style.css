@@ -9,9 +9,12 @@ body {
     align-items: center;
 }
 h1 {
-    margin-bottom: 20px;
+    margin-bottom: 0px;
+    margin-right: auto;
+    margin-left: 20px;
     color: #4ecca3;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    align-self: flex-start;
 }
 #container {
     position: relative;
@@ -19,6 +22,7 @@ h1 {
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     width: 90vw;
     max-width: 90vw;
+    margin-top: 10px;
 }
 #gameCanvas {
     border: 3px solid #4ecca3;
@@ -52,12 +56,19 @@ h1 {
     opacity: 0.7;
     font-size: 14px;
 }
-/* Join/Leave button */
-#joinBtn {
+/* Controls container */
+#controls {
     position: fixed;
     left: 50%;
-    top: calc(100% - 80px); /* near bottom */
+    top: calc(100% - 80px);
     transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 9;
+}
+
+/* Join/Leave button */
+#joinBtn {
     padding: 16px 28px; /* bigger */
     background: #4ecca3;
     color: #0b132b;
@@ -67,9 +78,71 @@ h1 {
     font-size: 18px; /* bigger text */
     cursor: pointer;
     box-shadow: 0 4px 18px rgba(0,0,0,0.25);
-    z-index: 9;
 }
 #joinBtn:hover {
     filter: brightness(0.95);
+}
+
+/* Reset button */
+
+
+.status.success {
+    color: #4ecca3;
+}
+
+/* Checkpoint dropdown styles */
+.checkpoint-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.checkpoint-dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: rgba(26, 26, 46, 0.95);
+    min-width: 250px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
+    z-index: 1000;
+    border: 1px solid #4ecca3;
+    border-radius: 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    top: 100%;
+    right: 0;
+    margin-top: 5px;
+}
+
+.checkpoint-dropdown-content.show {
+    display: block;
+}
+
+.checkpoint-item {
+    color: white;
+    padding: 10px 15px;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(78, 204, 163, 0.2);
+}
+
+.checkpoint-item:hover {
+    background-color: rgba(78, 204, 163, 0.2);
+}
+
+.checkpoint-item.current {
+    background-color: rgba(78, 204, 163, 0.3);
+    font-weight: bold;
+}
+
+.checkpoint-item:last-child {
+    border-bottom: none;
+}
+
+.info-item.clickable {
+    cursor: pointer;
+}
+
+.info-item.clickable:hover {
+    background: rgba(78, 204, 163, 0.15);
 }
 

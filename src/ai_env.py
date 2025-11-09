@@ -21,12 +21,13 @@ class FlappyEnv:
     """
     Minimal gym-like environment wrapper for FlapPyBird.
 
-    Observation (float32, shape=(6,)):
-      [bird_y, bird_vel, dx1, dy1, dx2, dy2]
+    Observation (float32, shape=(8,)):
+      [bird_y, bird_vel, dx1, dy1, dx2, dy2, v1, v2]
       - bird_y:           normalized by viewport height
       - bird_vel:         clamped to [-VEL_CAP, VEL_CAP] then normalized
       - dx*:              (pipe.x - bird.x) / window.width
       - dy*:              (gap_center_y - bird.y) / viewport height
+      - v*:               vertical velocity of gap center (normalized)
 
     Actions (discrete):
       0 = do nothing
@@ -50,7 +51,7 @@ class FlappyEnv:
         moving_gaps: bool = False,
         gap_amp_px: float = 20.0,
         gap_freq_hz: float = 0.5,
-        include_gap_vel: bool = False,
+        include_gap_vel: bool = True,  # Always True - state is always 8D (6 base + 2 gap velocities)
         center_reward: float = 0.0,
     ) -> None:
         # Headless mode if not rendering
@@ -252,21 +253,16 @@ class FlappyEnv:
     def _get_state(self) -> np.ndarray:
         # Find the next two pipes ahead of the player
         next_idx, next2_idx = self._next_two_pipe_indices()
-        dx1, dy1, v1 = self._pipe_deltas(
-            next_idx, with_vel=self.include_gap_vel
-        )
-        dx2, dy2, v2 = self._pipe_deltas(
-            next2_idx, with_vel=self.include_gap_vel
-        )
+        # Always compute velocities (8D state)
+        dx1, dy1, v1 = self._pipe_deltas(next_idx, with_vel=True)
+        dx2, dy2, v2 = self._pipe_deltas(next2_idx, with_vel=True)
 
         vy_cap = max(abs(self.player.max_vel_y), abs(self.player.min_vel_y))
         vy = clamp(self.player.vel_y, -vy_cap, vy_cap) / float(vy_cap)
         bird_y = self.player.y / float(self.window.viewport_height)
 
-        parts = [bird_y, vy, dx1, dy1, dx2, dy2]
-        if self.include_gap_vel:
-            parts.extend([v1, v2])
-        state = np.array(parts, dtype=np.float32)
+        # Always include gap velocities (8D state)
+        state = np.array([bird_y, vy, dx1, dy1, dx2, dy2, v1, v2], dtype=np.float32)
         return state
 
     def _next_two_pipe_indices(self) -> Tuple[int, int]:
